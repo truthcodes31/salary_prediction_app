@@ -3,7 +3,7 @@
 import streamlit as st
 import pandas as pd
 import joblib
-import os # Keep os import for robust pathing even with relative paths
+import os
 
 # --- 1. Set Page Configuration (MUST be the first Streamlit command) ---
 st.set_page_config(
@@ -12,32 +12,105 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- Construct paths to the model files (now relative to app.py itself) ---
-# Since train_model.py now saves to 'app/models/', app.py can look directly in 'models/'.
-pipeline_path = os.path.join('models', 'salary_predictor_pipeline.pkl')
-expected_features_path = os.path.join('models', 'expected_features.pkl')
-app_job_titles_path = os.path.join('models', 'app_job_titles.pkl')
+# --- Define the path to the data file relative to the app.py script ---
+# Assumes 'Salary Data.csv' is in 'data/' and app.py is in 'app/'
+DATA_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'Salary Data.csv')
 
+# --- Use Streamlit's caching decorator for resource-heavy operations ---
+# @st.cache_resource ensures the function runs only once per app session (or when inputs/code change)
+# and caches the returned object (the model pipeline).
+@st.cache_resource
+def load_and_train_model():
+    """
+    Loads data, trains the model, and returns the trained pipeline and app job titles.
+    This function will be cached by Streamlit to run only once.
+    """
+    st.write("Loading data and training model... (This runs only once per deployment)")
 
-# Initial debug message (can be commented out or removed later)
-# st.write("Streamlit is running!")
+    # Load the dataset
+    try:
+        df = pd.read_csv(DATA_FILE_PATH)
+        st.write(f"Dataset '{DATA_FILE_PATH}' loaded successfully. Shape: {df.shape}")
+    except FileNotFoundError:
+        st.error(f"ERROR: Data file not found at '{DATA_FILE_PATH}'. Please ensure 'Salary Data.csv' is in the 'data/' directory.")
+        st.stop()
+    except Exception as e:
+        st.error(f"ERROR: An unexpected error occurred while loading data: {e}.")
+        st.stop()
 
-try:
-    # Load models using the relative paths
-    model_pipeline = joblib.load(pipeline_path)
-    expected_features = joblib.load(expected_features_path)
-    app_job_titles = joblib.load(app_job_titles_path)
-    # st.write("Model files loaded successfully.") # Confirm loading, can remove later
-except FileNotFoundError:
-    st.error(f"Error: Model files not found. Attempted to load from:")
-    st.error(f"- Pipeline: {pipeline_path}")
-    st.error(f"- Expected Features: {expected_features_path}")
-    st.error(f"- App Job Titles: {app_job_titles_path}")
-    st.error("Please ensure 'python scripts/train_model.py' was run successfully and these files exist in the 'app/models/' directory.")
-    st.stop()
-except Exception as e:
-    st.error(f"An unexpected error occurred while loading model files: {e}")
-    st.stop()
+    # Data Cleaning and Type Conversion
+    df_cleaned = df.dropna().copy()
+    st.write(f"Data cleaning: Original rows: {len(df)}, Rows after dropping NaNs: {len(df_cleaned)}")
+    df_cleaned['Age'] = df_cleaned['Age'].astype(int)
+    df_cleaned['Years of Experience'] = df_cleaned['Years of Experience'].astype(int)
+    df_cleaned['Salary'] = df_cleaned['Salary'].astype(int)
+    st.write("Data cleaning: Numerical columns converted to integer type.")
+
+    # Handle 'Job Title' High Cardinality
+    JOB_TITLE_FREQ_THRESHOLD = 5
+    job_title_counts = df_cleaned['Job Title'].value_counts()
+    job_titles_to_keep = job_title_counts[job_title_counts >= JOB_TITLE_FREQ_THRESHOLD].index.tolist()
+    df_cleaned['Job Title Grouped'] = df_cleaned['Job Title'].apply(
+        lambda x: x if x in job_titles_to_keep else 'Other Job Title'
+    )
+    st.write(f"Job titles grouped. Original unique: {df['Job Title'].nunique()}, Grouped unique: {df_cleaned['Job Title Grouped'].nunique()}")
+
+    app_job_titles = sorted(df_cleaned['Job Title Grouped'].unique().tolist())
+
+    # Define Features (X) and Target (y)
+    X = df_cleaned[['Age', 'Gender', 'Education Level', 'Years of Experience', 'Job Title Grouped']]
+    y = df_cleaned['Salary']
+    st.write(f"Features (X) and target (y) defined. Features used: {X.columns.tolist()}")
+
+    # Identify Numerical and Categorical Columns for Preprocessing
+    numerical_cols = ['Age', 'Years of Experience']
+    categorical_cols = ['Gender', 'Education Level', 'Job Title Grouped']
+    st.write(f"Numerical columns: {numerical_cols}, Categorical columns: {categorical_cols}")
+
+    # Create a ColumnTransformer for Preprocessing
+    from sklearn.preprocessing import StandardScaler, OneHotEncoder
+    from sklearn.compose import ColumnTransformer
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('num', StandardScaler(), numerical_cols),
+            ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_cols)
+        ])
+    st.write("ColumnTransformer (preprocessor) created.")
+
+    # Create a Pipeline
+    from sklearn.pipeline import Pipeline
+    from sklearn.linear_model import LinearRegression
+    model_pipeline = Pipeline(steps=[
+        ('preprocessor', preprocessor),
+        ('regressor', LinearRegression())
+    ])
+    st.write("Model pipeline created.")
+
+    # Split the Data into Training and Testing Sets
+    from sklearn.model_selection import train_test_split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    st.write(f"Data split into training ({len(X_train)} samples) and testing ({len(X_test)} samples) sets.")
+
+    # Train the Model (Fit the Pipeline)
+    model_pipeline.fit(X_train, y_train)
+    st.write("Model pipeline trained successfully.")
+
+    # Evaluate the Model
+    score = model_pipeline.score(X_test, y_test)
+    st.write(f"Model R-squared on test set: {score:.2f}")
+
+    # Return the trained pipeline and the list of app job titles
+    return model_pipeline, app_job_titles
+
+# --- Load and Train Model (this call will be cached) ---
+# The first time the app runs, this will execute load_and_train_model().
+# Subsequent runs (e.g., user interaction) will use the cached result.
+model_pipeline, app_job_titles = load_and_train_model()
+
+# You can remove these debug lines once the app is working
+# st.write("Model pipeline loaded/trained successfully.")
+# st.write(f"App Job Titles (first 5): {app_job_titles[:5]}...")
+# st.write(f"Total App Job Titles: {len(app_job_titles)}")
 
 
 st.title("💰 Salary Prediction App")
