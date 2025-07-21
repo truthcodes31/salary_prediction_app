@@ -9,15 +9,20 @@ from sklearn.pipeline import Pipeline
 import joblib
 import os
 
+print("--- Starting train_model.py script ---")
+print(f"Current working directory: {os.getcwd()}")
+print(f"Script directory: {os.path.dirname(__file__)}")
+
 # --- 2. Load the dataset ---
 # Path is now relative to the project root, assuming the script is run from there.
-# (Which it is, via the 'command' in .streamlit/config.toml)
+data_file_path = 'data/Salary Data.csv'
+full_data_path = os.path.join(os.getcwd(), data_file_path) # Get absolute path for logging
+print(f"Attempting to load data from: {full_data_path}")
 try:
-    data_file_path = 'data/Salary Data.csv' # Simplified path
     df = pd.read_csv(data_file_path)
-    print(f"Dataset '{data_file_path}' loaded successfully.")
+    print(f"Dataset '{data_file_path}' loaded successfully. Shape: {df.shape}")
 except FileNotFoundError:
-    print(f"Error: '{data_file_path}' not found. Please ensure it's in the 'data/' directory relative to the project root.")
+    print(f"ERROR: Data file not found at '{full_data_path}'. Please ensure it's in the 'data/' directory relative to the project root.")
     exit()
 
 # --- 3. Data Cleaning and Type Conversion ---
@@ -80,19 +85,22 @@ print("Model pipeline trained successfully.")
 score = model_pipeline.score(X_test, y_test)
 print(f"Model R-squared on test set: {score:.2f}")
 
-# --- 12. Create the 'models' directory if it doesn't exist ---
-# This path is now directly relative to the project root.
-models_dir = 'models' # Simplified path
+# --- 12. Create the 'models' directory inside 'app/' if it doesn't exist ---
+# This path is now relative to the project root, and targets the 'app/models/' location.
+models_dir = 'app/models'
+full_models_dir_path = os.path.join(os.getcwd(), models_dir) # Get absolute path for logging
+print(f"Checking for models directory: {full_models_dir_path}")
 if not os.path.exists(models_dir):
     os.makedirs(models_dir)
-    print(f"Created directory: {models_dir}")
+    print(f"Created directory: {full_models_dir_path}")
 else:
-    print(f"Directory '{models_dir}' already exists.")
+    print(f"Directory '{full_models_dir_path}' already exists.")
 
 # --- 13. Save the trained Pipeline ---
 pipeline_save_path = os.path.join(models_dir, 'salary_predictor_pipeline.pkl')
+full_pipeline_save_path = os.path.join(os.getcwd(), pipeline_save_path) # Absolute path for logging
 joblib.dump(model_pipeline, pipeline_save_path)
-print(f"Model pipeline saved as: {pipeline_save_path}")
+print(f"Model pipeline saved to: {full_pipeline_save_path}")
 
 # --- 14. Save the list of Expected Feature Names ---
 ohe_transformer = model_pipeline.named_steps['preprocessor'].named_transformers_['cat']
@@ -100,12 +108,14 @@ ohe_feature_names = ohe_transformer.get_feature_names_out(categorical_cols)
 all_feature_names = list(numerical_cols) + list(ohe_feature_names)
 
 expected_features_path = os.path.join(models_dir, 'expected_features.pkl')
+full_expected_features_path = os.path.join(os.getcwd(), expected_features_path) # Absolute path for logging
 joblib.dump(all_feature_names, expected_features_path)
-print(f"Expected feature names saved as: {expected_features_path}")
+print(f"Expected feature names saved to: {full_expected_features_path}")
 
 # --- 15. Save the list of Job Titles for the App's Dropdown ---
 app_job_titles_path = os.path.join(models_dir, 'app_job_titles.pkl')
+full_app_job_titles_path = os.path.join(os.getcwd(), app_job_titles_path) # Absolute path for logging
 joblib.dump(app_job_titles, app_job_titles_path)
-print(f"App job titles list saved as: {app_job_titles_path}")
+print(f"App job titles list saved to: {full_app_job_titles_path}")
 
-print("\nModel training and saving process completed successfully!")
+print("\n--- Model training and saving process completed successfully! ---")

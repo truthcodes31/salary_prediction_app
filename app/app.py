@@ -12,13 +12,11 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- Construct relative paths to the model files ---
-# These paths are relative to the location of app.py.
-# app.py is in 'app/', models are in 'models/' (sibling to 'app/')
-# So, we go up one level (..) from 'app/' to the project root, then into 'models/'.
-pipeline_path = os.path.join('..', 'models', 'salary_predictor_pipeline.pkl')
-expected_features_path = os.path.join('..', 'models', 'expected_features.pkl')
-app_job_titles_path = os.path.join('..', 'models', 'app_job_titles.pkl')
+# --- Construct paths to the model files (now relative to app.py itself) ---
+# Since train_model.py now saves to 'app/models/', app.py can look directly in 'models/'.
+pipeline_path = os.path.join('models', 'salary_predictor_pipeline.pkl')
+expected_features_path = os.path.join('models', 'expected_features.pkl')
+app_job_titles_path = os.path.join('models', 'app_job_titles.pkl')
 
 
 # Initial debug message (can be commented out or removed later)
@@ -35,7 +33,7 @@ except FileNotFoundError:
     st.error(f"- Pipeline: {pipeline_path}")
     st.error(f"- Expected Features: {expected_features_path}")
     st.error(f"- App Job Titles: {app_job_titles_path}")
-    st.error("Please ensure 'python scripts/train_model.py' was run successfully and these files exist in the 'models/' directory relative to the app.")
+    st.error("Please ensure 'python scripts/train_model.py' was run successfully and these files exist in the 'app/models/' directory.")
     st.stop()
 except Exception as e:
     st.error(f"An unexpected error occurred while loading model files: {e}")
