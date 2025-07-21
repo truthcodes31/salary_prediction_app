@@ -9,34 +9,42 @@ from sklearn.pipeline import Pipeline
 import joblib
 import os
 
-print("--- Starting train_model.py script ---")
-print(f"Current working directory: {os.getcwd()}")
-print(f"Script directory: {os.path.dirname(__file__)}")
+print("--- TRAIN_MODEL.PY SCRIPT STARTING (MAX DEBUG) ---")
+print(f"Current working directory (os.getcwd()): {os.getcwd()}")
+print(f"Script absolute path (__file__): {os.path.abspath(__file__)}")
+print(f"Script directory (os.path.dirname(__file__)): {os.path.dirname(__file__)}")
 
 # --- 2. Load the dataset ---
-# Path is now relative to the project root, assuming the script is run from there.
-data_file_path = 'data/Salary Data.csv'
-full_data_path = os.path.join(os.getcwd(), data_file_path) # Get absolute path for logging
-print(f"Attempting to load data from: {full_data_path}")
+# Path for data file, relative to the project root (where the 'command' is run from)
+data_file_relative_path = 'data/Salary Data.csv'
+data_file_full_path = os.path.join(os.getcwd(), data_file_relative_path)
+
+print(f"\n--- Data Loading ---")
+print(f"Attempting to load data from relative path: '{data_file_relative_path}'")
+print(f"Full absolute path for data file: '{data_file_full_path}'")
+print(f"Does data file exist at full path? {os.path.exists(data_file_full_path)}")
+
 try:
-    df = pd.read_csv(data_file_path)
-    print(f"Dataset '{data_file_path}' loaded successfully. Shape: {df.shape}")
+    df = pd.read_csv(data_file_relative_path)
+    print(f"SUCCESS: Dataset '{data_file_relative_path}' loaded successfully. Shape: {df.shape}")
 except FileNotFoundError:
-    print(f"ERROR: Data file not found at '{full_data_path}'. Please ensure it's in the 'data/' directory relative to the project root.")
+    print(f"ERROR: Data file NOT FOUND at '{data_file_full_path}'. Exiting train_model.py.")
+    exit() # Exit the script if the file is not found
+except Exception as e:
+    print(f"ERROR: An unexpected error occurred while loading data: {e}. Exiting train_model.py.")
     exit()
 
 # --- 3. Data Cleaning and Type Conversion ---
 df_cleaned = df.dropna().copy()
-print(f"Original rows: {len(df)}, Rows after dropping NaNs: {len(df_cleaned)}")
+print(f"Data cleaning: Original rows: {len(df)}, Rows after dropping NaNs: {len(df_cleaned)}")
 
 df_cleaned['Age'] = df_cleaned['Age'].astype(int)
 df_cleaned['Years of Experience'] = df_cleaned['Years of Experience'].astype(int)
 df_cleaned['Salary'] = df_cleaned['Salary'].astype(int)
-print("Numerical columns converted to integer type.")
+print("Data cleaning: Numerical columns converted to integer type.")
 
 # --- 4. Handle 'Job Title' High Cardinality ---
 JOB_TITLE_FREQ_THRESHOLD = 5
-
 job_title_counts = df_cleaned['Job Title'].value_counts()
 job_titles_to_keep = job_title_counts[job_title_counts >= JOB_TITLE_FREQ_THRESHOLD].index.tolist()
 df_cleaned['Job Title Grouped'] = df_cleaned['Job Title'].apply(
@@ -49,14 +57,12 @@ app_job_titles = sorted(df_cleaned['Job Title Grouped'].unique().tolist())
 # --- 5. Define Features (X) and Target (y) ---
 X = df_cleaned[['Age', 'Gender', 'Education Level', 'Years of Experience', 'Job Title Grouped']]
 y = df_cleaned['Salary']
-print("Features (X) and target (y) defined, including 'Job Title Grouped'.")
-print(f"Features used: {X.columns.tolist()}")
+print(f"Features (X) and target (y) defined. Features used: {X.columns.tolist()}")
 
 # --- 6. Identify Numerical and Categorical Columns for Preprocessing ---
 numerical_cols = ['Age', 'Years of Experience']
 categorical_cols = ['Gender', 'Education Level', 'Job Title Grouped']
-print(f"Numerical columns identified: {numerical_cols}")
-print(f"Categorical columns identified: {categorical_cols}")
+print(f"Numerical columns: {numerical_cols}, Categorical columns: {categorical_cols}")
 
 # --- 7. Create a ColumnTransformer for Preprocessing ---
 preprocessor = ColumnTransformer(
@@ -85,37 +91,57 @@ print("Model pipeline trained successfully.")
 score = model_pipeline.score(X_test, y_test)
 print(f"Model R-squared on test set: {score:.2f}")
 
-# --- 12. Create the 'models' directory inside 'app/' if it doesn't exist ---
-# This path is now relative to the project root, and targets the 'app/models/' location.
-models_dir = 'app/models'
-full_models_dir_path = os.path.join(os.getcwd(), models_dir) # Get absolute path for logging
-print(f"Checking for models directory: {full_models_dir_path}")
-if not os.path.exists(models_dir):
-    os.makedirs(models_dir)
-    print(f"Created directory: {full_models_dir_path}")
+# --- 12. Create the 'models' directory inside 'app/' ---
+# This path is relative to the project root, and targets the 'app/models/' location.
+models_dir_relative_to_root = 'app/models'
+models_dir_full_path = os.path.join(os.getcwd(), models_dir_relative_to_root)
+
+print(f"\n--- Saving Models ---")
+print(f"Target directory for models (relative to root): '{models_dir_relative_to_root}'")
+print(f"Full absolute path for models directory: '{models_dir_full_path}'")
+
+if not os.path.exists(models_dir_relative_to_root):
+    try:
+        os.makedirs(models_dir_relative_to_root)
+        print(f"SUCCESS: Created directory: {models_dir_full_path}")
+    except Exception as e:
+        print(f"ERROR: Failed to create directory '{models_dir_full_path}': {e}. Exiting train_model.py.")
+        exit()
 else:
-    print(f"Directory '{full_models_dir_path}' already exists.")
+    print(f"Directory '{models_dir_full_path}' already exists.")
 
 # --- 13. Save the trained Pipeline ---
-pipeline_save_path = os.path.join(models_dir, 'salary_predictor_pipeline.pkl')
-full_pipeline_save_path = os.path.join(os.getcwd(), pipeline_save_path) # Absolute path for logging
-joblib.dump(model_pipeline, pipeline_save_path)
-print(f"Model pipeline saved to: {full_pipeline_save_path}")
+pipeline_save_relative_path = os.path.join(models_dir_relative_to_root, 'salary_predictor_pipeline.pkl')
+pipeline_save_full_path = os.path.join(os.getcwd(), pipeline_save_relative_path)
+try:
+    joblib.dump(model_pipeline, pipeline_save_relative_path)
+    print(f"SUCCESS: Model pipeline saved to: {pipeline_save_full_path}")
+except Exception as e:
+    print(f"ERROR: Failed to save pipeline to '{pipeline_save_full_path}': {e}. Exiting train_model.py.")
+    exit()
 
 # --- 14. Save the list of Expected Feature Names ---
 ohe_transformer = model_pipeline.named_steps['preprocessor'].named_transformers_['cat']
 ohe_feature_names = ohe_transformer.get_feature_names_out(categorical_cols)
 all_feature_names = list(numerical_cols) + list(ohe_feature_names)
 
-expected_features_path = os.path.join(models_dir, 'expected_features.pkl')
-full_expected_features_path = os.path.join(os.getcwd(), expected_features_path) # Absolute path for logging
-joblib.dump(all_feature_names, expected_features_path)
-print(f"Expected feature names saved to: {full_expected_features_path}")
+expected_features_save_relative_path = os.path.join(models_dir_relative_to_root, 'expected_features.pkl')
+expected_features_save_full_path = os.path.join(os.getcwd(), expected_features_save_relative_path)
+try:
+    joblib.dump(all_feature_names, expected_features_save_relative_path)
+    print(f"SUCCESS: Expected feature names saved to: {expected_features_save_full_path}")
+except Exception as e:
+    print(f"ERROR: Failed to save expected features to '{expected_features_save_full_path}': {e}. Exiting train_model.py.")
+    exit()
 
 # --- 15. Save the list of Job Titles for the App's Dropdown ---
-app_job_titles_path = os.path.join(models_dir, 'app_job_titles.pkl')
-full_app_job_titles_path = os.path.join(os.getcwd(), app_job_titles_path) # Absolute path for logging
-joblib.dump(app_job_titles, app_job_titles_path)
-print(f"App job titles list saved to: {full_app_job_titles_path}")
+app_job_titles_save_relative_path = os.path.join(models_dir_relative_to_root, 'app_job_titles.pkl')
+app_job_titles_save_full_path = os.path.join(os.getcwd(), app_job_titles_save_relative_path)
+try:
+    joblib.dump(app_job_titles, app_job_titles_save_relative_path)
+    print(f"SUCCESS: App job titles list saved to: {app_job_titles_save_full_path}")
+except Exception as e:
+    print(f"ERROR: Failed to save app job titles to '{app_job_titles_save_full_path}': {e}. Exiting train_model.py.")
+    exit()
 
-print("\n--- Model training and saving process completed successfully! ---")
+print("\n--- TRAIN_MODEL.PY SCRIPT COMPLETED SUCCESSFULLY! ---")
