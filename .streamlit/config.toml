@@ -17,11 +17,11 @@ gatherUsageStats = false
 level = "info"
 
 [theme]
-base="light"
-primaryColor="#F63366"
-backgroundColor="#FFFFFF"
-secondaryBackgroundColor="#F0F2F6"
-textColor="#262730"
+base="dark" # Changed from "light" to "dark"
+primaryColor="#F63366" # This is a bright accent color
+backgroundColor="#000000" # Changed to pure black
+secondaryBackgroundColor="#1A1A1A" # A dark grey for secondary elements
+textColor="#FFFFFF" # White text for contrast
 font="sans serif"
 
-# The [main] section and 'command' line are REMOVED from here.
+# The [main] section and 'command' line should already be REMOVED from here.
