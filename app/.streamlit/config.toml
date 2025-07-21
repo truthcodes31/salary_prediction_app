@@ -1,0 +1,30 @@
+[server]
+enableCORS = false
+
+[client]
+toolbarMode = "minimal"
+
+[runner]
+magicEnabled = true
+
+[global]
+dataFrameSerialization = "arrow"
+
+[browser]
+gatherUsageStats = false
+
+[logger]
+level = "info"
+
+[theme]
+base="light"
+primaryColor="#F63366"
+backgroundColor="#FFFFFF"
+secondaryBackgroundColor="#F0F2F6"
+textColor="#262730"
+font="sans serif"
+
+# This tells Streamlit to execute a command before running your main app script.
+# We'll use this to run the training script.
+[main]
+command = "python scripts/train_model.py && streamlit run app/app.py"

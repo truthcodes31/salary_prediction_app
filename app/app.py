@@ -3,7 +3,7 @@
 import streamlit as st
 import pandas as pd
 import joblib
-# os import is no longer needed if paths are hardcoded
+import os # Keep os import for robust pathing even with relative paths
 
 # --- 1. Set Page Configuration (MUST be the first Streamlit command) ---
 st.set_page_config(
@@ -12,19 +12,20 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 2. Construct absolute paths to the model files ---
-# These paths are directly taken from the output of your train_model.py script.
-# IMPORTANT: If you move your project, you will need to update these paths manually.
-pipeline_path = r"C:\Users\shand\OneDrive\Desktop\salary_prediction_app\models\salary_predictor_pipeline.pkl"
-expected_features_path = r"C:\Users\shand\OneDrive\Desktop\salary_prediction_app\models\expected_features.pkl"
-app_job_titles_path = r"C:\Users\shand\OneDrive\Desktop\salary_prediction_app\models\app_job_titles.pkl"
+# --- Construct relative paths to the model files ---
+# These paths are relative to the location of app.py.
+# app.py is in 'app/', models are in 'models/' (sibling to 'app/')
+# So, we go up one level (..) from 'app/' to the project root, then into 'models/'.
+pipeline_path = os.path.join('..', 'models', 'salary_predictor_pipeline.pkl')
+expected_features_path = os.path.join('..', 'models', 'expected_features.pkl')
+app_job_titles_path = os.path.join('..', 'models', 'app_job_titles.pkl')
 
 
-# You can keep this for initial debug, but it will appear on the page.
+# Initial debug message (can be commented out or removed later)
 # st.write("Streamlit is running!")
 
 try:
-    # Load models using the absolute paths
+    # Load models using the relative paths
     model_pipeline = joblib.load(pipeline_path)
     expected_features = joblib.load(expected_features_path)
     app_job_titles = joblib.load(app_job_titles_path)
@@ -34,7 +35,7 @@ except FileNotFoundError:
     st.error(f"- Pipeline: {pipeline_path}")
     st.error(f"- Expected Features: {expected_features_path}")
     st.error(f"- App Job Titles: {app_job_titles_path}")
-    st.error("Please ensure 'python scripts/train_model.py' was run successfully and these files exist at the specified paths.")
+    st.error("Please ensure 'python scripts/train_model.py' was run successfully and these files exist in the 'models/' directory relative to the app.")
     st.stop()
 except Exception as e:
     st.error(f"An unexpected error occurred while loading model files: {e}")
